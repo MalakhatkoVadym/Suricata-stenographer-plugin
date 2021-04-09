@@ -254,21 +254,26 @@ static int TemplateOpen(ConfNode *conf, void **data) {
     const char * command_pipe = ConfNodeLookupChildValue(conf, "command-pipe");
 
     if (command_pipe != NULL) {
-    if (!ConfValIsFalse(command_pipe)) {
-        command_pipe_enabled = true;
-        
-        if(mkfifo(command_pipe, 0666) != 0) {
-            SCLogError(SC_ERR_LOGDIR_CONFIG, "Suricata-Stenographer plugin cannot create fifo file \"%s\" "
-                ". Shutting down the engine", command_pipe);
-            exit(EXIT_FAILURE);
+     if (!ConfValIsFalse(command_pipe)) {
+            command_pipe_enabled = true;
+
+            if((command_pipe_fd = open(command_pipe, 0666 | O_NONBLOCK)) <= 0)  {
+                printf("Cant open - %s\n", command_pipe);
+                if(mkfifo(command_pipe, 0666) != 0) {
+                    printf("Cant create pipe - %s\n", command_pipe);
+                    SCLogError(SC_ERR_LOGDIR_CONFIG, "Suricata-Stenographer plugin cannot create fifo file \"%s\" "
+                        ". Shutting down the engine", command_pipe);
+                    exit(EXIT_FAILURE);
+                } 
+                if((command_pipe_fd = open(command_pipe, 0666)) <= 0)
+                {
+                    SCLogError(SC_ERR_LOGDIR_CONFIG, "Suricata-Stenographer plugin cannot create fifo file \"%s\" "
+                        ". Shutting down the engine", command_pipe);
+                    exit(EXIT_FAILURE);
+                }   
+            }
+            SCLogNotice("Pipe name is - %s fd - %d \n", command_pipe, command_pipe_fd);
         }
-        
-        if((command_pipe_fd = open(command_pipe, O_RDONLY)) < 0) {
-            //SCLogError(SC_ERR_LOGDIR_CONFIG, "Suricata-Stenographer plugin cannot create fifo file \"%s\" "
-            //    ". Shutting down the engine", command_pipe);
-            //exit(EXIT_FAILURE);
-        }
-    }
     }
 
     const char * s_before_time = ConfNodeLookupChildValue(conf, "before-time");
